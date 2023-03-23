@@ -1,24 +1,87 @@
 const std = @import("std");
 
+const CARDIAC = struct {
+    const Self = @This();
+    program_counter: usize,
+    accumullator: u64,
+    memory: [100] u64,
+
+    pub fn new(memory: [100] u64) CARDIAC {
+        return CARDIAC {
+            .program_counter = 0,
+            .accumullator = 0,
+            .memory = memory,
+        };
+    }
+
+    pub fn run(self: *Self) void {
+        running: while(true) {
+            const instruction = self.memory[self.program_counter];
+            self.program_counter += 1;
+
+            const op_code = @intToEnum(CARDIAC.OPCode, instruction / 100);
+            const memory_address = instruction % 100;
+
+
+            switch (op_code) {
+                .INP => {unreachable;},
+                .CLA => {
+                    self.accumullator = self.memory[memory_address];
+
+                    },
+                .ADD => {
+                    self.accumullator += self.memory[memory_address];
+
+                    },
+                .TAC => {
+
+                    },
+                .SFT => {unreachable;},
+                .OUT => {unreachable;},
+                .STO => {
+                    self.memory[memory_address] = self.accumullator;
+                },
+                .SUB => {unreachable;},
+                .JMP => {unreachable;},
+                .HRS => {break: running;},
+            }
+
+        }
+    }
+
+    const OPCode = enum {
+        INP,
+        CLA,
+        ADD,
+        TAC,
+        SFT,
+        OUT,
+        STO,
+        SUB,
+        JMP,
+        HRS,
+    };
+};
+
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
 }
 
 test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    var mem: [100] u64 = undefined;
+
+    mem[0] = 198;
+    mem[98] = 2;
+
+    mem[1] = 297;
+    mem[97] = 4;
+
+    mem[2] = 696;
+
+    mem[3] = 999;
+
+    var cardiac = CARDIAC.new(mem);
+
+    cardiac.run();
+
+    try std.testing.expectEqual(cardiac.memory[96], 6);
 }
