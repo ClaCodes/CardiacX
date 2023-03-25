@@ -143,6 +143,50 @@ test "write output" {
     try std.testing.expectError(Cardiac.Error.BusError, read_without_input);
 }
 
+test "bootstrap program expect execute correct addition" {
+    // after reset program counter points to 0 which contains instruction
+    // 001 = read input to 1
+    // this gives us control over the second instruction to execute
+    // we establish a read-loop to place instructions in memory
+    // finally we will break the read-loop and hand-off control to the actual program
+
+    const bootable_program =  [_]u64{
+        // establish read loop
+          2, // read    to  2
+        800, // jump    to  0
+
+        // read in program
+          3, // read    to  3
+        108, // load  from  8    will be at 3
+          4, // read    to  4
+        209, // add   from  9    will be at 4
+          5, // read    to  5
+        610, // store   to 10    will be at 5
+          6, // read    to  6
+        510, // write from 10    will be at 6
+          7, // read    to  7
+        999, // halt             will be at 7
+          8, // read    to  8
+        123, // data             will be at 8
+          9, // read    to  9
+        181, // data             will be at 9
+
+        // hand off control to program at 3
+          2, // read    to  2
+        803, // jmp     to  3    will be at 2
+    };
+
+    var out_buffer:[1]u64 = undefined;
+
+    var storage:BusDevice = .{.storage = StorageDevice.new(&bootable_program, &out_buffer)};
+
+    var cardiac = Cardiac.new(&storage);
+    cardiac.run();
+
+    try std.testing.expectEqual(out_buffer[0], 304);
+
+}
+
 test "reset should immediately halt again" {
     var cardiac = Cardiac.new(null);
     const step_after_reset = cardiac.step(); // read to 1
