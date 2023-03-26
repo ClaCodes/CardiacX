@@ -22,21 +22,21 @@ pub fn stringUpperAlloc(string: []const u8, allocator: Allocator) ![]u8 {
     return result;
 }
 
-pub fn isSpaceOrTab(char: u8) bool {
-    return (char == ' ') or (char == '\t');
+pub fn isWhiteSpace(char: u8) bool {
+    return (char == ' ') or (char == '\t') or (char == '\r') or (char == '\n');
 }
 
 pub fn stringTrim(string: []const u8) []const u8 {
     var start: usize = 0;
     while (start < string.len) {
-        if (!isSpaceOrTab(string[start])) {
+        if (!isWhiteSpace(string[start])) {
             break;
         }
         start += 1;
     }
     var end: usize = string.len;
     while (end > start) {
-        if (!isSpaceOrTab(string[end - 1])) {
+        if (!isWhiteSpace(string[end - 1])) {
             break;
         }
         end -= 1;
@@ -147,6 +147,7 @@ pub fn main() !void {
 
             if (paramNullable) |param| {
                 if (isNumber(param)) {
+                    std.debug.print("*{s}*\n", .{param});
                     code += try std.fmt.parseInt(i16, param, 10);
                 } else {
                     if (labels.get(param)) |value| {
