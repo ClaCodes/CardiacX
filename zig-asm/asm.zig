@@ -147,7 +147,6 @@ pub fn main() !void {
 
             if (paramNullable) |param| {
                 if (isNumber(param)) {
-                    std.debug.print("*{s}*\n", .{param});
                     code += try std.fmt.parseInt(i16, param, 10);
                 } else {
                     if (labels.get(param)) |value| {
