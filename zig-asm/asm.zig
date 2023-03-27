@@ -80,8 +80,8 @@ pub fn assemble(in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) 
 
     var address: usize = 0;
 
-    var pass:usize = 0;
-    while (pass<2) {
+    var pass:i32 = -1;
+    while (pass<1) {
         pass +=1 ;
         var lines = std.mem.split(u8, in, "\n");
         while (lines.next()) |lineRaw| {
