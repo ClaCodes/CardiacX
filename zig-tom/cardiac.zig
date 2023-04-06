@@ -2,9 +2,6 @@
 // https://www.cs.drexel.edu/~bls96/museum/cardiac.html
 // https://www.cs.drexel.edu/~bls96/museum/cardsim.html
 
-// https://ziglearn.org/chapter-1/
-// https://www.lagerdata.com/articles/an-intro-to-zigs-integer-casting-for-c-programmers
-
 const std = @import("std");
 
 const out_fn = *const fn (value: i16) void;
@@ -26,6 +23,10 @@ const OpCode = enum(usize) {
 pub fn cardiac(memory: *[100]i16, inp: inp_fn, out: out_fn) void {
     var acc: i16 = 0;
     var pc: usize = 1;
+
+    // TODO memory 0 and 99 can be overwritten, which is wrong
+
+    memory[0] = 1;
 
     while (true) {
         const instruction: u16 = @intCast(u16, memory[pc]);
@@ -64,16 +65,18 @@ pub fn cardiac(memory: *[100]i16, inp: inp_fn, out: out_fn) void {
     }
 }
 
-pub fn out_stdout(value: i16) void {
+fn out_null(_: i16) void {}
+
+fn out_stdout(value: i16) void {
     const stdout = std.io.getStdOut().writer();
     stdout.print("{}\n", .{value}) catch {};
 }
 
-pub fn inp_666() i16 {
+fn inp_666() i16 {
     return 666;
 }
 
-pub fn inp_stdin() i16 {
+fn inp_stdin() i16 {
     const stdin = std.io.getStdIn().reader();
     var buffer: [8]u8 = undefined;
     if (stdin.readUntilDelimiterOrEof(&buffer, '\n') catch null) |line| {
@@ -83,17 +86,11 @@ pub fn inp_stdin() i16 {
     }
 }
 
-pub fn make_instruction(opcode: OpCode, address: usize) i16 {
+fn make_instruction(opcode: OpCode, address: usize) i16 {
     return (@intCast(i16, @enumToInt(opcode)) * 100) + @intCast(i16, address);
 }
 
-pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-
-    var memory: [100]i16 = undefined;
-
-    memory[0] = 1;
-
+fn program_demo(memory: *[100]i16) void {
     // code - main
 
     memory[1] = make_instruction(OpCode.CLA, 20);
@@ -121,10 +118,33 @@ pub fn main() !void {
     // data - subroutine
 
     memory[24] = 888;
+}
 
-    //cardiac(&memory, inp_stdin, out_stdout);
+pub fn main() !void {
+    const stdout = std.io.getStdOut().writer();
+
+    var memory: [100]i16 = undefined;
+    program_demo(&memory);
+
     cardiac(&memory, inp_666, out_stdout);
 
-    try stdout.print("memory[12] = {}\n", .{memory[23]});
-    try stdout.print("memory[13] = {}\n", .{memory[24]});
+    try stdout.print("memory[23] = {}\n", .{memory[23]});
+    try stdout.print("memory[24] = {}\n", .{memory[24]});
+}
+
+test "make_instruction" {
+    try std.testing.expectEqual(make_instruction(OpCode.CLA, 23), 123);
+}
+
+test "program_demo" {
+    var memory: [100]i16 = undefined;
+    program_demo(&memory);
+
+    try std.testing.expectEqual(memory[23], 999);
+    try std.testing.expectEqual(memory[24], 888);
+
+    cardiac(&memory, inp_666, out_null);
+
+    try std.testing.expectEqual(memory[23], -90);
+    try std.testing.expectEqual(memory[24], 666);
 }
