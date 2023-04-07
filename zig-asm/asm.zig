@@ -59,8 +59,7 @@ fn isNumber(string: []const u8) bool {
     return (string[0] == '-') or ((string[0] >= '0') and (string[0] <= '9'));
 }
 
-pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) !void {
-
+pub fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, in: []const u8, allocator: Allocator) !void {
     var opcodes = std.StringHashMap(usize).init(allocator);
     try opcodes.put("INP", 0);
     try opcodes.put("CLA", 1);
@@ -74,14 +73,13 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
     try opcodes.put("HRS", 9);
     defer opcodes.deinit();
 
-    // TODO store just slices
     var labels = std.StringHashMap(usize).init(allocator);
     defer labels.deinit();
 
-    var address: usize = startAddress;
-
     var pass: i32 = -1;
     while (pass < 1) {
+        var address: usize = startAddress;
+
         pass += 1;
         var lines = std.mem.split(u8, in, "\n");
         while (lines.next()) |lineRaw| {
@@ -122,9 +120,8 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
 
             var code: i16 = 1000;
 
-            address += 1;
-
             if (pass == 0) {
+                address += 1;
                 continue;
             }
 
@@ -152,31 +149,140 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
                 }
             }
 
-            try out.writer().print("{}\n", .{code});
+            memory[address] = code;
+
+            address += 1;
         }
+
+        endAddress.* = address;
     }
 }
 
 pub fn main() !void {
     const stdout = std.io.getStdOut();
-    const allocator = std.heap.page_allocator; // TODO general_purpose allocator
 
-    const all = try fileReadAlloc("zig-asm/test.asm", allocator);
-    defer allocator.free(all);
+    // TODO does not detect leaks during normal runtime or tests?
+    //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    //const allocator = gpa.allocator();
+    const allocator = std.heap.page_allocator;
 
-    try assemble(0, all, stdout, allocator);
+    const in = try fileReadAlloc("zig-asm/test.asm", allocator);
+    defer allocator.free(in);
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+
+    try assemble(0, &endAddress, &memory, in, allocator);
+
+    for (0..endAddress) |address| {
+        try stdout.writer().print("{}\n", .{memory[address]});
+    }
 }
 
-test "assemble" {
-    const stdout = std.io.getStdOut();
-    const allocator = std.testing.allocator;
+const test_allocator = std.testing.allocator;
 
-    const all = try fileReadAlloc("zig-asm/test.asm", allocator);
-    defer allocator.free(all);
+test "assemble file" {
+    const in = try fileReadAlloc("zig-asm/test.asm", test_allocator);
+    defer test_allocator.free(in);
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
 
-    try assemble(0, all, stdout, allocator);
+    try assemble(0, &endAddress, &memory, in, test_allocator);
 }
 
-test "main" {
-    try main();
+test "assemble label forward" {
+    const in =
+        \\ CLA const_3
+        \\ const_3: 3
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 2);
+    try std.testing.expectEqual(memory[0], 101);
+    try std.testing.expectEqual(memory[1], 3);
+}
+
+test "assemble data" {
+    const in =
+        \\ 123
+        \\ 234
+        \\ 456
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 3);
+    try std.testing.expectEqual(memory[0], 123);
+    try std.testing.expectEqual(memory[1], 234);
+    try std.testing.expectEqual(memory[2], 456);
+}
+
+test "assemble comments and whitespace" {
+    const in =
+        \\
+        \\ CLA   01
+        \\  CLA 02 // comment
+        \\   // comment
+        \\
+        \\ // comment
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 2);
+    try std.testing.expectEqual(memory[0], 101);
+    try std.testing.expectEqual(memory[1], 102);
+}
+
+test "assemble all opcodes" {
+    const in =
+        \\ INP 00
+        \\ CLA 00
+        \\ ADD 00
+        \\ TAC 00
+        \\ SFT 00
+        \\ OUT 00
+        \\ STO 00
+        \\ SUB 00
+        \\ JMP 00
+        \\ HRS 00
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 10);
+    for (0..10) |address| {
+        try std.testing.expectEqual(memory[address], @intCast(i16, address * 100));
+    }
+}
+
+test "assemble empty single line" {
+    const in =
+        \\
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 0);
+}
+
+test "assemble empty buffer" {
+    const in = "";
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 0);
 }
