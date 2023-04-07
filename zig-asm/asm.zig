@@ -4,6 +4,8 @@ const Allocator = std.mem.Allocator;
 
 const CompileError = error{
     TooManyTokens,
+    InvalidOpcode,
+    InvalidLabel,
 };
 
 fn fileSize(fileName: []const u8) !usize {
@@ -147,6 +149,8 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
                 } else {
                     if (opcodes.get(opcode)) |value| {
                         code = @intCast(i16, value) * 100;
+                    } else {
+                        return CompileError.InvalidOpcode;
                     }
                 }
             }
@@ -157,6 +161,8 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
                 } else {
                     if (labels.get(param)) |value| {
                         code += @intCast(i16, value);
+                    } else {
+                        return CompileError.InvalidLabel;
                     }
                 }
             }
