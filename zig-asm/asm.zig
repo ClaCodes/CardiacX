@@ -59,18 +59,54 @@ fn isNumber(string: []const u8) bool {
     return (string[0] == '-') or ((string[0] >= '0') and (string[0] <= '9'));
 }
 
+const Tokens = struct {
+    labelNullable: ?[]const u8,
+    opcodeNullable: ?[]const u8,
+    paramNullable: ?[]const u8,
+};
+
+fn parseLine(line: []const u8) !Tokens {
+    var result = Tokens{ .labelNullable = null, .opcodeNullable = null, .paramNullable = null };
+
+    if (line.len == 0) {
+        return result; // skip empty lines
+    }
+
+    var tokens = std.mem.split(u8, line, " ");
+    var nonLabelCount: usize = 0;
+
+    while (tokens.next()) |tokenRaw| {
+        const token = stringTrim(tokenRaw);
+        if (token.len == 0) {
+            continue;
+        } else if (isLabel(token)) {
+            result.labelNullable = token[0 .. token.len - 1]; // remove colon at the end
+        } else if (nonLabelCount == 0) {
+            result.opcodeNullable = token;
+            nonLabelCount += 1;
+        } else if (nonLabelCount == 1) {
+            result.paramNullable = token;
+            nonLabelCount += 1;
+        } else {
+            return CompileError.TooManyTokens;
+        }
+    }
+
+    return result;
+}
+
 pub fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, in: []const u8, allocator: Allocator) !void {
-    var opcodes = std.StringHashMap(usize).init(allocator);
+    var opcodes = std.StringHashMap(i16).init(allocator);
     try opcodes.put("INP", 0);
-    try opcodes.put("CLA", 1);
-    try opcodes.put("ADD", 2);
-    try opcodes.put("TAC", 3);
-    try opcodes.put("SFT", 4);
-    try opcodes.put("OUT", 5);
-    try opcodes.put("STO", 6);
-    try opcodes.put("SUB", 7);
-    try opcodes.put("JMP", 8);
-    try opcodes.put("HRS", 9);
+    try opcodes.put("CLA", 100);
+    try opcodes.put("ADD", 200);
+    try opcodes.put("TAC", 300);
+    try opcodes.put("SFT", 400);
+    try opcodes.put("OUT", 500);
+    try opcodes.put("STO", 600);
+    try opcodes.put("SUB", 700);
+    try opcodes.put("JMP", 800);
+    try opcodes.put("HRS", 900);
     defer opcodes.deinit();
 
     var labels = std.StringHashMap(usize).init(allocator);
@@ -83,61 +119,38 @@ pub fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, in: 
         pass += 1;
         var lines = std.mem.split(u8, in, "\n");
         while (lines.next()) |lineRaw| {
-            const line: []const u8 = stringTrim(stringUncomment(lineRaw));
-            if (line.len == 0) {
-                continue;
+            const line: []const u8 = stringUncomment(lineRaw);
+
+            const tokens = try parseLine(line);
+
+            if (tokens.labelNullable) |label| {
+                try labels.put(label, address);
             }
-
-            var opcodeNullable: ?[]const u8 = null;
-            var paramNullable: ?[]const u8 = null;
-            var tokens = std.mem.split(u8, line, " ");
-            var nonLabelCount: usize = 0;
-
-            while (tokens.next()) |tokenRaw| {
-                const token = stringTrim(tokenRaw);
-                if (token.len == 0) {
-                    continue;
-                }
-                if (isLabel(token)) {
-                    const label = token[0 .. token.len - 1]; // remove colon at the end
-                    if (pass == 0) {
-                        try labels.put(label, address);
-                    }
-                } else if (nonLabelCount == 0) {
-                    opcodeNullable = token;
-                    nonLabelCount += 1;
-                } else if (nonLabelCount == 1) {
-                    paramNullable = token;
-                    nonLabelCount += 1;
-                } else {
-                    return CompileError.TooManyTokens;
-                }
-            }
-
-            if ((opcodeNullable == null) and (paramNullable == null)) {
-                continue;
-            }
-
-            var code: i16 = 1000;
 
             if (pass == 0) {
                 address += 1;
                 continue;
             }
 
-            if (opcodeNullable) |opcode| {
+            if ((tokens.opcodeNullable == null) and (tokens.paramNullable == null)) {
+                continue;
+            }
+
+            var code: i16 = 1000;
+
+            if (tokens.opcodeNullable) |opcode| {
                 if (isNumber(opcode)) {
                     code = try std.fmt.parseInt(i16, opcode, 10);
                 } else {
                     if (opcodes.get(opcode)) |value| {
-                        code = @intCast(i16, value) * 100;
+                        code = value;
                     } else {
                         return CompileError.InvalidOpcode;
                     }
                 }
             }
 
-            if (paramNullable) |param| {
+            if (tokens.paramNullable) |param| {
                 if (isNumber(param)) {
                     code += try std.fmt.parseInt(i16, param, 10);
                 } else {
@@ -150,7 +163,6 @@ pub fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, in: 
             }
 
             memory[address] = code;
-
             address += 1;
         }
 
@@ -194,6 +206,22 @@ test "assemble label forward" {
     const in =
         \\ CLA const_3
         \\ const_3: 3
+    ;
+
+    var memory: [100]i16 = undefined;
+    var endAddress: usize = 0;
+    try assemble(0, &endAddress, &memory, in, test_allocator);
+
+    try std.testing.expectEqual(endAddress, 2);
+    try std.testing.expectEqual(memory[0], 101);
+    try std.testing.expectEqual(memory[1], 3);
+}
+
+test "assemble label forward newline" {
+    const in =
+        \\ CLA const_3
+        \\ const_3:
+        \\ 3
     ;
 
     var memory: [100]i16 = undefined;
