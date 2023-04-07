@@ -22,19 +22,11 @@ fn fileReadAlloc(fileName: []const u8, allocator: Allocator) ![]u8 {
     return buffer;
 }
 
-pub fn stringUpperAlloc(string: []const u8, allocator: Allocator) ![]u8 {
-    const result = try allocator.alloc(u8, string.len);
-    for (string) |char, i| {
-        result[i] = std.ascii.toUpper(char);
-    }
-    return result;
-}
-
-pub fn isWhiteSpace(char: u8) bool {
+fn isWhiteSpace(char: u8) bool {
     return (char == ' ') or (char == '\t') or (char == '\r') or (char == '\n');
 }
 
-pub fn stringTrim(string: []const u8) []const u8 {
+fn stringTrim(string: []const u8) []const u8 {
     var start: usize = 0;
     while (start < string.len) {
         if (!isWhiteSpace(string[start])) {
@@ -52,24 +44,23 @@ pub fn stringTrim(string: []const u8) []const u8 {
     return string[start..end];
 }
 
-pub fn stringUncomment(string: []const u8) []const u8 {
+fn stringUncomment(string: []const u8) []const u8 {
     if (std.mem.indexOf(u8, string, "//")) |index| {
         return string[0..index];
     }
     return string[0..];
 }
 
-pub fn isLabel(string: []const u8) bool {
+fn isLabel(string: []const u8) bool {
     return string[string.len - 1] == ':';
 }
 
-pub fn isNumber(string: []const u8) bool {
+fn isNumber(string: []const u8) bool {
     return (string[0] == '-') or ((string[0] >= '0') and (string[0] <= '9'));
 }
 
 pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) !void {
 
-    // switch does not work on strings, big if/else?
     var opcodes = std.StringHashMap(usize).init(allocator);
     try opcodes.put("INP", 0);
     try opcodes.put("CLA", 1);
@@ -83,23 +74,18 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
     try opcodes.put("HRS", 9);
     defer opcodes.deinit();
 
+    // TODO store just slices
     var labels = std.StringHashMap(usize).init(allocator);
     defer labels.deinit();
 
     var address: usize = startAddress;
 
-    var pass:i32 = -1;
-    while (pass<1) {
-        pass +=1 ;
+    var pass: i32 = -1;
+    while (pass < 1) {
+        pass += 1;
         var lines = std.mem.split(u8, in, "\n");
         while (lines.next()) |lineRaw| {
-            // TODO not possible create a dynamic one on the stack :(
-            // maybe could try FixedBufferAllocator
-            // using a fixed buffer slice on the stack
-            const lineUpper: []u8 = try stringUpperAlloc(lineRaw, allocator);
-            defer allocator.free(lineUpper);
-
-            const line: []const u8 = stringTrim(stringUncomment(lineUpper));
+            const line: []const u8 = stringTrim(stringUncomment(lineRaw));
             if (line.len == 0) {
                 continue;
             }
@@ -115,10 +101,9 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
                     continue;
                 }
                 if (isLabel(token)) {
-                    const label = token[0 .. token.len - 1];
-                    if(pass == 0) {
-                        const lab = try stringUpperAlloc(label, allocator);
-                        try labels.put(lab, address);
+                    const label = token[0 .. token.len - 1]; // remove colon at the end
+                    if (pass == 0) {
+                        try labels.put(label, address);
                     }
                 } else if (nonLabelCount == 0) {
                     opcodeNullable = token;
@@ -139,7 +124,7 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
 
             address += 1;
 
-            if(pass == 0) {
+            if (pass == 0) {
                 continue;
             }
 
@@ -170,17 +155,13 @@ pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator
             try out.writer().print("{}\n", .{code});
         }
     }
-    var it = labels.keyIterator();
-    while (it.next()) |key| {
-        allocator.free(key.*);
-    }
 }
 
 pub fn main() !void {
     const stdout = std.io.getStdOut();
-    const allocator = std.heap.page_allocator;
+    const allocator = std.heap.page_allocator; // TODO general_purpose allocator
 
-    var all = try fileReadAlloc("zig-asm/test.asm", allocator);
+    const all = try fileReadAlloc("zig-asm/test.asm", allocator);
     defer allocator.free(all);
 
     try assemble(0, all, stdout, allocator);
@@ -190,7 +171,7 @@ test "assemble" {
     const stdout = std.io.getStdOut();
     const allocator = std.testing.allocator;
 
-    var all = try fileReadAlloc("zig-asm/test.asm", allocator);
+    const all = try fileReadAlloc("zig-asm/test.asm", allocator);
     defer allocator.free(all);
 
     try assemble(0, all, stdout, allocator);
