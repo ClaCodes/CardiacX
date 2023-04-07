@@ -65,7 +65,7 @@ pub fn isNumber(string: []const u8) bool {
     return (string[0] == '-') or ((string[0] >= '0') and (string[0] <= '9'));
 }
 
-pub fn assemble(in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) !void {
+pub fn assemble(startAddress: usize, in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) !void {
 
     // switch does not work on strings, big if/else?
     var opcodes = std.StringHashMap(usize).init(allocator);
@@ -84,7 +84,7 @@ pub fn assemble(in: []const u8, out: std.fs.File, allocator: std.mem.Allocator) 
     var labels = std.StringHashMap(usize).init(allocator);
     defer labels.deinit();
 
-    var address: usize = 0;
+    var address: usize = startAddress;
 
     var pass:i32 = -1;
     while (pass<1) {
@@ -177,8 +177,7 @@ pub fn main() !void {
     var all = try fileReadAlloc("zig-asm/test.asm", allocator);
     defer allocator.free(all);
 
-    try assemble(all, stdout, allocator);
-
+    try assemble(0, all, stdout, allocator);
 }
 
 test "assemble" {
@@ -188,7 +187,7 @@ test "assemble" {
     var all = try fileReadAlloc("zig-asm/test.asm", allocator);
     defer allocator.free(all);
 
-    try assemble(all, stdout, allocator);
+    try assemble(0, all, stdout, allocator);
 }
 
 test "main" {
