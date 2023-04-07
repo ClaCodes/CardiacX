@@ -6,11 +6,17 @@ const CompileError = error{
     TooManyTokens,
 };
 
-pub fn fileReadAlloc(fileName: []const u8, allocator: Allocator) ![]u8 {
-    var file = try std.fs.cwd().openFile(fileName, .{});
+fn fileSize(fileName: []const u8) !usize {
+    const file = try std.fs.cwd().openFile(fileName, .{});
+    return try file.getEndPos();
+}
+
+fn fileReadAlloc(fileName: []const u8, allocator: Allocator) ![]u8 {
+    const file = try std.fs.cwd().openFile(fileName, .{});
     defer file.close();
 
-    const buffer = try file.readToEndAlloc(allocator, 4096);
+    const size = try fileSize(fileName);
+    const buffer = try file.readToEndAlloc(allocator, size);
     return buffer;
 }
 
