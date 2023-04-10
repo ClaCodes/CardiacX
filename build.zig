@@ -3,7 +3,7 @@ const std = @import("std");
 // add files that contain unit-tests (defined using the `test "xyz"` style
 // in the list below.
 const test_files = .{
-//    "src/cardiac.zig",
+    "src/cardiac.zig",
     "zig-asm/asm.zig",
 };
 
