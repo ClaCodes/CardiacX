@@ -18,10 +18,7 @@ pub const BusDevice = union(enum) {
         }
     }
 
-    pub const Error = error {
-        WriteError,
-        NoMoreInput
-    };
+    pub const Error = error{ WriteError, NoMoreInput };
 };
 
 pub const StorageDevice = struct {
@@ -31,7 +28,7 @@ pub const StorageDevice = struct {
     write_buffer: []u64,
 
     pub fn new(read_buffer: []const u64, write_buffer: []u64) StorageDevice {
-        return StorageDevice {
+        return StorageDevice{
             .read_counter = 0,
             .read_buffer = read_buffer,
             .write_counter = 0,
@@ -66,9 +63,8 @@ var bw = std.io.bufferedWriter(stdout_file);
 const stdout = bw.writer();
 
 pub const IODevice = struct {
-
     pub fn new() IODevice {
-        return IODevice { };
+        return IODevice{};
     }
 
     fn read(self: *@This()) !u64 {
@@ -87,5 +83,3 @@ pub const IODevice = struct {
         try bw.flush();
     }
 };
-
-

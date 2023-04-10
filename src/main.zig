@@ -6,8 +6,8 @@ const IODevice = @import("bus.zig").IODevice;
 pub fn main() !void {
     // program that reads from std input,
     // doubles the number and outputs it to stdout
-    const program =  [_]u64{
-          6, // 0: input  to 6
+    const program = [_]u64{
+        6, // 0: input  to 6
         106, // 1: load from 6
         206, // 2: add  from 6
         606, // 3: store  to 6
@@ -15,11 +15,10 @@ pub fn main() !void {
         800, // 5: jmp    to 0
     };
 
-    var io: BusDevice = .{.io = IODevice.new()};
+    var io: BusDevice = .{ .io = IODevice.new() };
 
     var cardiac = Cardiac.new(&io);
     try cardiac.flash(&program);
 
     cardiac.run();
 }
-
