@@ -3,8 +3,9 @@ const std = @import("std");
 // add files that contain unit-tests (defined using the `test "xyz"` style
 // in the list below.
 const test_files = .{
-    "src/cardiac.zig",
-    "zig-asm/asm.zig",
+    "zig-cla/main.zig",
+    "tools/runner.zig",
+    "tools/asm.zig",
 };
 
 // Although this function looks imperative, note that its job is to
@@ -26,14 +27,21 @@ pub fn build(b: *std.Build) void {
         .name = "CardiacX",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "zig-cla/main.zig" },
         .target = target,
         .optimize = optimize,
     });
 
     const asm_exe = b.addExecutable(.{
         .name = "CardiacAssembler",
-        .root_source_file = .{ .path = "zig-asm/asm.zig" },
+        .root_source_file = .{ .path = "tools/asm.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const runner_exe = b.addExecutable(.{
+        .name = "CardiacRunner",
+        .root_source_file = .{ .path = "tools/runner.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -43,12 +51,14 @@ pub fn build(b: *std.Build) void {
     // step when running `zig build`).
     exe.install();
     asm_exe.install();
+    runner_exe.install();
 
     // This *creates* a RunStep in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
     const run_cmd = exe.run();
     const asm_cmd = asm_exe.run();
+    const runner_cmd = runner_exe.run();
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
@@ -56,12 +66,14 @@ pub fn build(b: *std.Build) void {
     // files, this ensures they will be present and in the expected location.
     run_cmd.step.dependOn(b.getInstallStep());
     asm_cmd.step.dependOn(b.getInstallStep());
+    runner_cmd.step.dependOn(b.getInstallStep());
 
     // This allows the user to pass arguments to the application in the build
     // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
         asm_cmd.addArgs(args);
+        runner_cmd.addArgs(args);
     }
 
     // This creates a build step. It will be visible in the `zig build --help` menu,
@@ -71,6 +83,8 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
     const asm_step = b.step("asm", "Run the assembler");
     asm_step.dependOn(&asm_cmd.step);
+    const runner_step = b.step("runner", "Run over a directory to assemble and test");
+    runner_step.dependOn(&runner_cmd.step);
 
 
     // Similar to creating the run step earlier, this exposes a `test` step to

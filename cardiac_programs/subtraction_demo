@@ -1,0 +1,8 @@
+CLA A
+SUB B
+STO C
+OUT C
+HRS
+A: 3
+B: 5
+C: 0

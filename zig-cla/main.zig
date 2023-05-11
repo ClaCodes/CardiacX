@@ -1,15 +1,20 @@
 const std = @import("std");
-const BusDevice = @import("bus.zig").BusDevice;
-const IODevice = @import("bus.zig").IODevice;
-const StorageDevice = @import("bus.zig").StorageDevice;
 
-pub const Cardiac = struct {
+pub fn main() void {
+    var io: BusDevice = .{ .io = IODevice.new() };
+
+    var cardiac = Cardiac.new(&io);
+
+    cardiac.run();
+}
+
+const Cardiac = struct {
     program_counter: usize,
-    accumullator: u64,
-    memory: [100]u64,
+    accumullator: i16,
+    memory: [100]i16,
     bus_device: ?*BusDevice,
 
-    pub fn new(bus_device: ?*BusDevice) Cardiac {
+    fn new(bus_device: ?*BusDevice) Cardiac {
         var cardiac = Cardiac{
             .program_counter = undefined,
             .accumullator = undefined,
@@ -20,21 +25,21 @@ pub const Cardiac = struct {
         return cardiac;
     }
 
-    pub fn reset(self: *@This()) void {
+    fn reset(self: *@This()) void {
         self.program_counter = 0;
         self.accumullator = 0;
         self.memory = .{0} ** 100;
         self.memory[0] = 1;
     }
 
-    pub fn flash(self: *@This(), program: []const u64) !void {
+    fn flash(self: *@This(), program: []const i16) !void {
         for (program, 0..program.len) |byte, index| {
             if (byte > 999) return Cardiac.Error.InvalidProgram;
             if (index < self.memory.len) self.memory[index] = byte;
         }
     }
 
-    pub fn readTo(self: *@This(), memory_address: u64) !void {
+    fn readTo(self: *@This(), memory_address: usize) !void {
         if (self.bus_device) |device| {
             self.memory[memory_address] = try device.read();
         } else {
@@ -42,7 +47,7 @@ pub const Cardiac = struct {
         }
     }
 
-    pub fn writeFrom(self: *@This(), memory_address: u64) !void {
+    fn writeFrom(self: *@This(), memory_address: usize) !void {
         if (self.bus_device) |device| {
             try device.write(self.memory[memory_address]);
         } else {
@@ -50,8 +55,13 @@ pub const Cardiac = struct {
         }
     }
 
-    pub fn step(self: *@This()) !void {
-        const instruction = self.memory[self.program_counter];
+    fn step(self: *@This()) !void {
+        var instruction: u16 = undefined;
+        if (self.memory[self.program_counter] >= 0) {
+            instruction = @intCast(u16, self.memory[self.program_counter]);
+        } else {
+            instruction = @intCast(u16, -self.memory[self.program_counter]);
+        }
         self.program_counter += 1;
 
         const op_code = @intToEnum(Cardiac.OPCode, instruction / 100);
@@ -91,7 +101,7 @@ pub const Cardiac = struct {
         }
     }
 
-    pub fn run(self: *@This()) void {
+    fn run(self: *@This()) void {
         while (true) {
             self.step() catch break;
         }
@@ -110,7 +120,7 @@ pub const Cardiac = struct {
         HRS,
     };
 
-    pub const Error = error{
+    const Error = error{
         EndOfInput,
         BusError,
         Halted,
@@ -118,8 +128,92 @@ pub const Cardiac = struct {
     };
 };
 
+const BusDevice = union(enum) {
+    storage: StorageDevice,
+    io: IODevice,
+
+    fn read(self: *@This()) !i16 {
+        switch (self.*) {
+            .storage => return self.storage.read(),
+            .io => return self.io.read(),
+        }
+    }
+
+    fn write(self: *@This(), out: i16) !void {
+        switch (self.*) {
+            .storage => try self.storage.write(out),
+            .io => try self.io.write(out),
+        }
+    }
+
+    const Error = error{ WriteError, NoMoreInput };
+};
+
+const StorageDevice = struct {
+    read_counter: usize,
+    read_buffer: []const i16,
+    write_counter: usize,
+    write_buffer: []i16,
+
+    fn new(read_buffer: []const i16, write_buffer: []i16) StorageDevice {
+        return StorageDevice{
+            .read_counter = 0,
+            .read_buffer = read_buffer,
+            .write_counter = 0,
+            .write_buffer = write_buffer,
+        };
+    }
+
+    fn read(self: *@This()) !i16 {
+        self.read_counter += 1;
+        if (self.read_counter <= self.read_buffer.len) {
+            return self.read_buffer[self.read_counter - 1];
+        }
+        return BusDevice.Error.NoMoreInput;
+    }
+
+    fn write(self: *@This(), out: i16) !void {
+        self.write_counter += 1;
+        if (self.write_counter <= self.write_buffer.len) {
+            self.write_buffer[self.write_counter - 1] = out;
+        } else {
+            return BusDevice.Error.WriteError;
+        }
+    }
+};
+
+const stdin_file = std.io.getStdIn().reader();
+var br = std.io.bufferedReader(stdin_file);
+const stdin = br.reader();
+
+const stdout_file = std.io.getStdOut().writer();
+var bw = std.io.bufferedWriter(stdout_file);
+const stdout = bw.writer();
+
+const IODevice = struct {
+    fn new() IODevice {
+        return IODevice{};
+    }
+
+    fn read(self: *@This()) !i16 {
+        _ = self;
+        var str: [9]u8 = undefined;
+        const have_read = try stdin.readUntilDelimiterOrEof(&str, '\n');
+        if (have_read) |string| {
+            return std.fmt.parseInt(i16, string, 10);
+        }
+        return BusDevice.Error.NoMoreInput;
+    }
+
+    fn write(self: *@This(), out: i16) !void {
+        _ = self;
+        try stdout.print("{}\n", .{out});
+        try bw.flush();
+    }
+};
+
 test "invalid instruction expect error" {
-    const program = [_]u64{
+    const program = [_]i16{
         1098, // 0: invalid instruction accepted range -999 to 999
     };
 
@@ -130,7 +224,7 @@ test "invalid instruction expect error" {
 }
 
 test "write output" {
-    const program = [_]u64{
+    const program = [_]i16{
         503, // 0: write from 3
         504, // 1: write from 4
         505, // 2: write from 5
@@ -139,9 +233,9 @@ test "write output" {
         7, // 5: data
     };
 
-    var write_buffer: [2]u64 = undefined;
+    var write_buffer: [2]i16 = undefined;
 
-    var storage: BusDevice = .{ .storage = StorageDevice.new(&[_]u64{}, write_buffer[0..2]) };
+    var storage: BusDevice = .{ .storage = StorageDevice.new(&[_]i16{}, write_buffer[0..2]) };
 
     var cardiac = Cardiac.new(&storage);
     var cardiac_no_input_deivce = Cardiac.new(null);
@@ -169,7 +263,7 @@ test "bootstrap program expect execute correct addition" {
     // we establish a read-loop to place instructions in memory
     // finally we will break the read-loop and hand-off control to the actual program
 
-    const bootable_program = [_]u64{
+    const bootable_program = [_]i16{
         // establish read loop
         2, // read    to  2
         800, // jump    to  0
@@ -195,7 +289,7 @@ test "bootstrap program expect execute correct addition" {
         803, // jmp     to  3    will be at 2
     };
 
-    var out_buffer: [1]u64 = undefined;
+    var out_buffer: [1]i16 = undefined;
 
     var storage: BusDevice = .{ .storage = StorageDevice.new(&bootable_program, &out_buffer) };
 
@@ -212,14 +306,14 @@ test "reset should immediately halt again" {
 }
 
 test "read input" {
-    const program = [_]u64{
+    const program = [_]i16{
         2, // 0: read to 2
         800, // 1: jump to 0
     };
 
-    var values = [_]u64{ 23, 334 };
+    var values = [_]i16{ 23, 334 };
 
-    var storage: BusDevice = .{ .storage = StorageDevice.new(&values, &[_]u64{}) };
+    var storage: BusDevice = .{ .storage = StorageDevice.new(&values, &[_]i16{}) };
 
     var cardiac = Cardiac.new(&storage);
     var cardiac_no_input_deivce = Cardiac.new(null);
@@ -243,7 +337,7 @@ test "read input" {
 }
 
 test "jump" {
-    const program = [_]u64{
+    const program = [_]i16{
         802, // 0: jump to 2
         999, // 1: halt
         801, // 2: jump to 1
@@ -259,7 +353,7 @@ test "jump" {
 }
 
 test "subtract 7 from 32 expect 25" {
-    const program = [_]u64{
+    const program = [_]i16{
         104, // 0: load  from 4
         705, // 1: sub   from 5
         606, // 2: store to   6
@@ -282,7 +376,7 @@ test "subtract 7 from 32 expect 25" {
 }
 
 test "add 7 to 12 expect 19" {
-    const program = [_]u64{
+    const program = [_]i16{
         104, // 0: load  from 4
         205, // 1: add   from 5
         606, // 2: store to   6
