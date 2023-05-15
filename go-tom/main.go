@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type OpCode int
 
@@ -19,14 +22,6 @@ const (
 
 type inpFn func() int16
 type outFn func(int16)
-
-func power(base int16, exponent int16) int16 {
-	result := int16(1)
-	for i := int16(0); i < exponent; i += 1 {
-		result *= base
-	}
-	return result
-}
 
 func cardiac(memory *[100]int16, startPc int16, inp inpFn, out outFn) {
 	var acc int16 = 0
@@ -55,7 +50,7 @@ func cardiac(memory *[100]int16, startPc int16, inp inpFn, out outFn) {
 		case SFT:
 			l := address / 10
 			r := address % 10
-			acc = acc * power(10, l) / power(10, r)
+			acc = acc * int16(math.Pow(10, float64(l))) / int16(math.Pow(10, float64(r)))
 		case OUT:
 			out(memory[address])
 		case STO:
@@ -84,11 +79,11 @@ func inp666() int16 {
 }
 
 func inpStdin() int16 {
-    var input string
-    fmt.Scanln(&input)
-    var number int16
-    fmt.Sscan(input, &number)
-    return number
+	var input string
+	fmt.Scanln(&input)
+	var number int16
+	fmt.Sscan(input, &number)
+	return number
 }
 
 func makeInstruction(opcode OpCode, address int16) int16 {
@@ -97,7 +92,5 @@ func makeInstruction(opcode OpCode, address int16) int16 {
 
 func main() {
 	var memory [100]int16
-	//programDemo(&memory)
 	cardiac(&memory, 0, inpStdin, outStdout)
-	//fmt.Printf("memory[23] = %d\nmemory[24] = %d\n", memory[23], memory[24])
 }
