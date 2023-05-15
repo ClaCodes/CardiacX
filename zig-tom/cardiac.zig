@@ -20,9 +20,9 @@ const OpCode = enum(usize) {
     HRS = 9,
 };
 
-pub fn cardiac(memory: *[100]i16, inp: inp_fn, out: out_fn) void {
+pub fn cardiac(memory: *[100]i16, pc_start: usize, inp: inp_fn, out: out_fn) void {
     var acc: i16 = 0;
-    var pc: usize = 1;
+    var pc: usize = pc_start;
 
     memory[0] = 1;
 
@@ -123,15 +123,8 @@ fn program_demo(memory: *[100]i16) void {
 }
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-
     var memory: [100]i16 = undefined;
-    program_demo(&memory);
-
-    cardiac(&memory, inp_666, out_stdout);
-
-    try stdout.print("memory[23] = {}\n", .{memory[23]});
-    try stdout.print("memory[24] = {}\n", .{memory[24]});
+    cardiac(&memory, 0, inp_stdin, out_stdout);
 }
 
 test "make_instruction" {
@@ -145,7 +138,7 @@ test "program_demo" {
     try std.testing.expectEqual(memory[23], 999);
     try std.testing.expectEqual(memory[24], 888);
 
-    cardiac(&memory, inp_666, out_null);
+    cardiac(&memory, 1, inp_666, out_null);
 
     try std.testing.expectEqual(memory[23], -90);
     try std.testing.expectEqual(memory[24], 666);
