@@ -24,8 +24,6 @@ pub fn cardiac(memory: *[100]i16, inp: inp_fn, out: out_fn) void {
     var acc: i16 = 0;
     var pc: usize = 1;
 
-    // TODO memory 0 and 99 can be overwritten, which is wrong
-
     memory[0] = 1;
 
     while (true) {
@@ -50,7 +48,11 @@ pub fn cardiac(memory: *[100]i16, inp: inp_fn, out: out_fn) void {
                 acc = @divFloor(acc * @intCast(i16, std.math.pow(u16, 10, l)), @intCast(i16, std.math.pow(u16, 10, r)));
             },
             OpCode.OUT => out(memory[address]),
-            OpCode.STO => memory[address] = acc,
+            OpCode.STO => {
+                if ((address != 0) and (address != 99)) {
+                    memory[address] = acc;
+                }
+            },
             OpCode.SUB => acc = acc - memory[address],
             OpCode.JMP => {
                 memory[99] = 800 + @intCast(i16, pc);
