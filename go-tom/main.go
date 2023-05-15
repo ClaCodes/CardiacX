@@ -28,9 +28,9 @@ func power(base int16, exponent int16) int16 {
 	return result
 }
 
-func cardiac(memory *[100]int16, inp inpFn, out outFn) {
+func cardiac(memory *[100]int16, startPc int16, inp inpFn, out outFn) {
 	var acc int16 = 0
-	var pc int16 = 1
+	var pc = startPc
 
 	memory[0] = 1
 
@@ -83,39 +83,21 @@ func inp666() int16 {
 	return 666
 }
 
+func inpStdin() int16 {
+    var input string
+    fmt.Scanln(&input)
+    var number int16
+    fmt.Sscan(input, &number)
+    return number
+}
+
 func makeInstruction(opcode OpCode, address int16) int16 {
 	return int16(opcode)*100 + address
 }
 
-func programDemo(memory *[100]int16) {
-	// code - main
-	memory[1] = makeInstruction(CLA, 20)
-	memory[2] = makeInstruction(ADD, 21)
-	memory[3] = makeInstruction(SFT, 21) // * 100 / 10
-	memory[4] = makeInstruction(STO, 23)
-	memory[5] = makeInstruction(OUT, 23)
-	memory[6] = makeInstruction(JMP, 10) // jump to subroutine
-	memory[7] = makeInstruction(HRS, 1)
-
-	// code - subroutine
-	memory[10] = makeInstruction(INP, 24)
-	memory[11] = makeInstruction(OUT, 24)
-	memory[12] = makeInstruction(CLA, 99) // load return address
-	memory[13] = makeInstruction(STO, 14) // store return address in next cell
-	memory[14] = 0                        // will be filled by previous command
-
-	// data - main
-	memory[20] = -3
-	memory[21] = -6
-	memory[23] = 999
-
-	// data - subroutine
-	memory[24] = 888
-}
-
 func main() {
 	var memory [100]int16
-	programDemo(&memory)
-	cardiac(&memory, inp666, outStdout)
-	fmt.Printf("memory[23] = %d\nmemory[24] = %d\n", memory[23], memory[24])
+	//programDemo(&memory)
+	cardiac(&memory, 0, inpStdin, outStdout)
+	//fmt.Printf("memory[23] = %d\nmemory[24] = %d\n", memory[23], memory[24])
 }
