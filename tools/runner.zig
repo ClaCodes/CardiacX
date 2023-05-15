@@ -37,6 +37,11 @@ fn run_on_files(invoke_child: []const []const u8, programs_directory: []const u8
     std.debug.print("================================================================================\n", .{});
 
     for (files.items) |file| {
+        const ext = file[file.len - 4 ..];
+        if (!std.mem.eql(u8, ext, ".asm")) {
+            continue;
+        }
+
         std.debug.print("Testing file: {s}\n", .{file});
 
         const program = try assemble_file(file, start_address, allocator);
