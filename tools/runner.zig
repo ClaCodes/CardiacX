@@ -10,9 +10,12 @@ const builtin = @import("builtin");
 const native_os = builtin.target.os.tag;
 
 pub fn main() !void {
-    // example:
+    // example 1:
     // zig build runner -- cardiac_programs /.../.../zig-out/bin/CardiacX
     // CardiacRunner cardiac_programs /.../.../zig-out/bin/CardiacX
+    //
+    // example 2:
+    // zig run runner.zig -- ../cardiac_programs ../go-tom/main
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
