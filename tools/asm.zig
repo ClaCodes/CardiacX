@@ -127,12 +127,12 @@ pub fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, in: 
                 try labels.put(label, address);
             }
 
-            if (pass == 0) {
-                address += 1;
+            if ((tokens.opcodeNullable == null) and (tokens.paramNullable == null)) {
                 continue;
             }
 
-            if ((tokens.opcodeNullable == null) and (tokens.paramNullable == null)) {
+            if (pass == 0) {
+                address += 1;
                 continue;
             }
 
@@ -194,7 +194,7 @@ pub fn main() !void {
 const test_allocator = std.testing.allocator;
 
 test "assemble file" {
-    const in = try fileReadAlloc("tools/test.asm", test_allocator);
+    const in = try fileReadAlloc("./test.asm", test_allocator);
     defer test_allocator.free(in);
     var memory: [100]i16 = undefined;
     var endAddress: usize = 0;
@@ -205,6 +205,7 @@ test "assemble file" {
 test "assemble label forward" {
     const in =
         \\ CLA const_3
+        \\ unused_label:
         \\ const_3: 3
     ;
 
