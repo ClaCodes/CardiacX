@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>Test WASM</title>
+	<link rel="icon" href="data:,">
+	<script type="module">
+		async function loaded() {
+			console.log('Test WASM Start');
+
+			const response = await fetch('test.wasm');
+			const buffer = await response.arrayBuffer();
+
+			const assembly = await WebAssembly.instantiate(buffer, { env: {} });
+			const exports = assembly.instance.exports;
+
+			console.assert(exports.version() == 1);
+			console.assert(exports.testAdd(1, 2) == 3);
+
+			const out = new Int32Array(exports.memory.buffer, 0, 1);
+
+			exports.testOut(4, out.byteOffset);
+			console.assert(out[0] == 8);
+
+			const out1 = new Int32Array(exports.memory.buffer, 0, 1);
+			const out2 = new Int32Array(exports.memory.buffer, 4, 1);
+			exports.testOut2(3, 5, out1.byteOffset, out2.byteOffset);
+			console.assert(out1[0] == 8);
+			console.assert(out2[0] == -2);
+
+			const encoder = new TextEncoder();
+			for (const [string, result] of [['', 0], ['HelloWorld', 1], ['X', 0]]) {
+				const encoded = encoder.encode(string);
+				const buffer = new Uint8Array(exports.memory.buffer, 0, encoded.byteLength);
+				buffer.set(encoded);
+				console.assert(exports.testStringIsHelloWorld(buffer.byteOffset, buffer.byteLength) == result);
+			}
+
+			console.assert(exports.testAlloc(1) == 111);
+			console.assert(exports.testAlloc(2) == 222);
+
+			console.log('Test WASM Finished');
+		}
+
+		addEventListener('DOMContentLoaded', loaded);
+	</script>
+</head>
+
+<body>
+	<main>
+		<h1>Test WASM</h1>
+		<p>Start via WebServer (e.g. python3 -m http.server, Visual Studio Code Live Server, ...)</p>
+		<p>See Console (Ctrl+Shift+I)</p>
+	</main>
+</body>
+
+</html>
