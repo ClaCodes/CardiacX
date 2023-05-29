@@ -12,7 +12,7 @@
 			const response = await fetch('test.wasm');
 			const buffer = await response.arrayBuffer();
 
-			const assembly = await WebAssembly.instantiate(buffer, { env: {} });
+			const assembly = await WebAssembly.instantiate(buffer);
 			const exports = assembly.instance.exports;
 
 			console.assert(exports.version() == 1);

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>Cardiac VM</title>
+	<link rel="icon" href="data:,">
+	<style>
+		* {
+			box-sizing: border-box;
+			font-family: Tahoma, Verdana, sans-serif;
+		}
+
+		main {
+			max-width: 50em;
+			min-width: 20em;
+			margin: auto;
+		}
+
+		textarea {
+			width: 100%;
+			height: 10em;
+		}
+
+		button {
+			font-size: 1em;
+			width: 10em;
+		}
+	</style>
+	<script type="module">
+		console.log('Cardiac VM');
+
+		async function loaded() {
+			const response = await fetch('vm.wasm');
+			const buffer = await response.arrayBuffer();
+
+			const assembly = await WebAssembly.instantiate(buffer, { env: {} });
+			const exports = assembly.instance.exports;
+
+			console.assert(exports.version() == 1);
+
+			function createInt16Array(offset, length) {
+				return new Int16Array(exports.memory.buffer, offset, length);
+			}
+
+			function createString(offset, string,) {
+				const encoder = new TextEncoder();
+				const encoded = encoder.encode(string);
+				const buffer = new Uint8Array(exports.memory.buffer, offset, encoded.byteLength);
+				buffer.set(encoded);
+				return buffer;
+			}
+
+			function assemble() {
+				const assembler = document.getElementById('assembler').value;
+				console.log('assemble', assembler);
+				const startAddress = 0;
+				const endAddress = createInt16Array(1000, 1);
+				const memory = createInt16Array(2000, 100);
+				const in_ = createString(3000, '');
+				console.log(exports.assemble(startAddress, endAddress.byteOffset, memory.byteOffset, in_.byteOffset, in_.byteLength));
+			}
+
+			function run() {
+				const machinecode = document.getElementById('machinecode').value;
+				const input = document.getElementById('input').value;
+				console.log('run', machinecode, input);
+				const memory = createInt16Array(0, 100);
+				console.assert(exports.run(memory, 666) == 1);
+				console.log(memory[0]);
+				document.getElementById('output').value = memory;
+			}
+
+			document.getElementById('assemble').addEventListener('click', assemble);
+			document.getElementById('run').addEventListener('click', run);
+		}
+
+		addEventListener('DOMContentLoaded', loaded);
+	</script>
+</head>
+
+<body>
+	<main>
+		<h1>Cardiac Assembler</h1>
+		<h2>Assembler</h2>
+		<textarea id="assembler"></textarea>
+		<button id="assemble">Assemble</button>
+		<h2>Machine Code</h2>
+		<textarea id="machinecode"></textarea>
+		<h2>Input</h2>
+		<textarea id="input"></textarea>
+		<button id="run">Run</button>
+		<h2>Output</h2>
+		<textarea id="output"></textarea>
+	</main>
+</body>
+
+</html>
