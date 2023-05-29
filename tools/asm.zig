@@ -194,7 +194,7 @@ pub fn main() !void {
 const test_allocator = std.testing.allocator;
 
 test "assemble file" {
-    const in = try fileReadAlloc("./test.asm", test_allocator);
+    const in = try fileReadAlloc("tools/test.asm", test_allocator);
     defer test_allocator.free(in);
     var memory: [100]i16 = undefined;
     var endAddress: usize = 0;

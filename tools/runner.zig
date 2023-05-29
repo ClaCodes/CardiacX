@@ -36,8 +36,18 @@ fn run_on_files(invoke_child: []const []const u8, programs_directory: []const u8
     std.debug.print("Testing directory: {s}\n", .{programs_directory});
     std.debug.print("================================================================================\n", .{});
 
+    var total_tests: u32 = 0;
+    var success_tests: i32 = 0;
+
     for (files.items) |file| {
         const ext = file[file.len - 4 ..];
+
+        var exptected_out_file = std.ArrayList(u8).init(allocator);
+        defer exptected_out_file.deinit();
+
+        try exptected_out_file.appendSlice(file[0 .. file.len - 4]);
+        try exptected_out_file.appendSlice(".expected_out");
+
         if (!std.mem.eql(u8, ext, ".asm")) {
             continue;
         }
@@ -46,6 +56,9 @@ fn run_on_files(invoke_child: []const []const u8, programs_directory: []const u8
 
         const program = try assemble_file(file, start_address, allocator);
         defer program.deinit();
+
+        const expected_out = try load_file(exptected_out_file.items, allocator);
+        defer expected_out.deinit();
 
         var bootable = std.ArrayList(i16).init(allocator);
         defer bootable.deinit();
@@ -59,9 +72,16 @@ fn run_on_files(invoke_child: []const []const u8, programs_directory: []const u8
         try bootable.append(2); // load to 2
         try bootable.append(800 + @intCast(i16, start_address)); // jump to start
 
-        try invoke_with_timeout(invoke_child, bootable.items, allocator);
+        const test_ok = try invoke_with_timeout(invoke_child, bootable.items, expected_out.items, allocator);
+        total_tests += 1;
+        if (test_ok) {
+            success_tests += 1;
+        }
         std.debug.print("================================================================================\n", .{});
     }
+
+    std.debug.print("Successfully passed {} out of {} tests.\n", .{ success_tests, total_tests });
+    std.debug.print("================================================================================\n", .{});
 }
 
 fn alloc_dir_content(programs_directory: []const u8, allocator: Allocator) !std.ArrayList([]const u8) {
@@ -87,6 +107,21 @@ fn free_dir_content(files: std.ArrayList([]const u8), allocator: Allocator) void
     files.deinit();
 }
 
+fn load_file(path: []const u8, allocator: Allocator) !std.ArrayList(u8) {
+    var expected_out = std.ArrayList(u8).init(allocator);
+    const mode: os.mode_t = if (native_os == .windows) 0 else 0o666;
+
+    var buf: [1024]u8 = undefined;
+
+    const fd = try os.open(path, os.O.RDWR, mode);
+    defer os.close(fd);
+
+    const read_size = try os.read(fd, &buf);
+
+    try expected_out.appendSlice(buf[0..read_size]);
+    return expected_out;
+}
+
 fn assemble_file(path: []const u8, start_address: usize, allocator: Allocator) !std.ArrayList(i16) {
     var program = std.ArrayList(i16).init(allocator);
     const mode: os.mode_t = if (native_os == .windows) 0 else 0o666;
@@ -107,7 +142,7 @@ fn assemble_file(path: []const u8, start_address: usize, allocator: Allocator) !
     return program;
 }
 
-fn invoke_with_timeout(invoke_child: []const []const u8, program: []const i16, allocator: Allocator) !void {
+fn invoke_with_timeout(invoke_child: []const []const u8, program: []const i16, expected_out: []const u8, allocator: Allocator) !bool {
     var arrlist = std.ArrayList([]const u8).init(allocator);
     defer arrlist.deinit();
 
@@ -155,5 +190,27 @@ fn invoke_with_timeout(invoke_child: []const []const u8, program: []const i16, a
     }
 
     std.debug.print("Std Out:\n\"{s}\"\n", .{stdout.items});
+    std.debug.print("Expected Std Out:\n\"{s}\"\n", .{expected_out});
     std.debug.print("Std Err:\n\"{s}\"\n", .{stderr.items});
+
+    if (stdout.items.len != expected_out.len) {
+        success = false;
+        std.debug.print("Length of output mismatch. Got: {} Expected {}\n", .{ stdout.items.len, expected_out.len });
+    }
+    const minimum: usize = if (stdout.items.len < expected_out.len) stdout.items.len else expected_out.len;
+
+    for (stdout.items[0..minimum], expected_out[0..minimum], 0..minimum) |got, expected, index| {
+        if (got != expected) {
+            success = false;
+            std.debug.print("Output not as expected at line {}. Got: {} Expected {}\n", .{ index, got, expected });
+        }
+    }
+
+    if (success) {
+        std.debug.print("Result: TEST PASSED\n", .{});
+    } else {
+        std.debug.print("Result: TEST FAILED\n", .{});
+    }
+
+    return success;
 }

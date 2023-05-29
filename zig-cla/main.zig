@@ -56,11 +56,11 @@ const Cardiac = struct {
     }
 
     fn step(self: *@This()) !void {
-        var instruction: u16 = undefined;
+        var instruction: u10 = undefined;
         if (self.memory[self.program_counter] >= 0) {
-            instruction = @intCast(u16, self.memory[self.program_counter]);
+            instruction = @intCast(u10, self.memory[self.program_counter]);
         } else {
-            instruction = @intCast(u16, -self.memory[self.program_counter]);
+            instruction = @intCast(u10, -self.memory[self.program_counter]);
         }
         self.program_counter += 1;
 
@@ -78,10 +78,17 @@ const Cardiac = struct {
                 self.accumullator += self.memory[memory_address];
             },
             .TAC => {
-                unreachable;
+                if (self.accumullator < 0) {
+                    self.memory[99] = 800 + @intCast(i16, self.program_counter);
+                    self.program_counter = memory_address;
+                }
             },
             .SFT => {
-                unreachable;
+                const l = memory_address / 10;
+                const r = memory_address % 10;
+                const acc_left_shifted = self.accumullator * std.math.pow(u10, 10, l);
+                const acc_right_shifted = @divFloor(acc_left_shifted, std.math.pow(u10, 10, r));
+                self.accumullator = acc_right_shifted;
             },
             .OUT => {
                 try self.writeFrom(memory_address);
@@ -93,6 +100,7 @@ const Cardiac = struct {
                 self.accumullator -= self.memory[memory_address];
             },
             .JMP => {
+                self.memory[99] = 800 + @intCast(i16, self.program_counter);
                 self.program_counter = memory_address;
             },
             .HRS => {

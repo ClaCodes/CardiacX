@@ -1,4 +1,4 @@
-CLA A // acc = [A] = 3
+CLA A // acc = [A] = 30
 SFT 10 // acc = acc * 10 = 300
 STO B // [B] = acc = 300
 OUT B
