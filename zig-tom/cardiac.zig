@@ -67,18 +67,18 @@ pub fn cardiac(memory: *[100]i16, pc_start: usize, inp: inp_fn, out: out_fn) voi
     }
 }
 
-fn out_null(_: i16) void {}
+pub fn out_null(_: i16) void {}
 
-fn out_stdout(value: i16) void {
+pub fn out_stdout(value: i16) void {
     const stdout = std.io.getStdOut().writer();
     stdout.print("{}\n", .{value}) catch {};
 }
 
-fn inp_666() i16 {
+pub fn inp_666() i16 {
     return 666;
 }
 
-fn inp_stdin() i16 {
+pub fn inp_stdin() i16 {
     const stdin = std.io.getStdIn().reader();
     var buffer: [8]u8 = undefined;
     if (stdin.readUntilDelimiterOrEof(&buffer, '\n') catch null) |line| {

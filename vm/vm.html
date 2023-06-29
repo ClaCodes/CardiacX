@@ -53,21 +53,27 @@
 
 			function assemble() {
 				const assembler = document.getElementById('assembler').value;
-				console.log('assemble', assembler);
 				const startAddress = 0;
 				const endAddress = createInt16Array(1000, 1);
 				const memory = createInt16Array(2000, 100);
-				const in_ = createString(3000, '');
+				const in_ = createString(3000, assembler);
 				console.log(exports.assemble(startAddress, endAddress.byteOffset, memory.byteOffset, in_.byteOffset, in_.byteLength));
+				console.log(endAddress[0]);
+				document.getElementById('machinecode').value = memory;
 			}
 
 			function run() {
 				const machinecode = document.getElementById('machinecode').value;
 				const input = document.getElementById('input').value;
-				console.log('run', machinecode, input);
-				const memory = createInt16Array(0, 100);
-				console.assert(exports.run(memory, 666) == 1);
-				console.log(memory[0]);
+				const memory = createInt16Array(500, 100);
+				memory[1] = 105;
+			    memory[2] = 205;
+    			memory[3] = 606;
+    			memory[4] = 900;
+    			memory[5] = 222;
+    			memory[6] = 0;
+				const startAddress = 1;
+				console.log(exports.run(memory.byteOffset, startAddress));
 				document.getElementById('output').value = memory;
 			}
 
@@ -83,7 +89,7 @@
 	<main>
 		<h1>Cardiac Assembler</h1>
 		<h2>Assembler</h2>
-		<textarea id="assembler"></textarea>
+		<textarea id="assembler">HRS</textarea>
 		<button id="assemble">Assemble</button>
 		<h2>Machine Code</h2>
 		<textarea id="machinecode"></textarea>
