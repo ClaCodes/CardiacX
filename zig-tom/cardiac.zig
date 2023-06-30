@@ -1,7 +1,3 @@
-// https://en.wikipedia.org/wiki/CARDboard_Illustrative_Aid_to_Computation
-// https://www.cs.drexel.edu/~bls96/museum/cardiac.html
-// https://www.cs.drexel.edu/~bls96/museum/cardsim.html
-
 const std = @import("std");
 
 const out_fn = *const fn (value: i16) void;

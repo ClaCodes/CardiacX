@@ -8,8 +8,8 @@ export fn version() i32 {
 }
 
 export fn assemble(startAddress: usize, endAddress: *usize, memory: *[100]i16, inPointer: [*]const u8, inLength: usize) i32 {
-    //const allocator = std.heap.page_allocator;
     var buffer: [4096]u8 = undefined;
+    // std.heap.page_allocator does not work with wasm
     var fba = std.heap.FixedBufferAllocator.init(&buffer);
     const allocator = fba.allocator();
 
