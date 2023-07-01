@@ -12,19 +12,23 @@
 		}
 
 		main {
-			max-width: 50em;
-			min-width: 20em;
-			margin: auto;
+			display: grid;
+			grid-template-columns: 1fr 1fr 1fr 1fr;
+			grid-gap: 1rem;
+		}
+
+		h2 {
+			font-size: 1rem;
 		}
 
 		textarea {
 			width: 100%;
-			height: 10em;
+			height: 20rem;
 		}
 
 		button {
-			font-size: 1em;
-			width: 10em;
+			font-size: 1rem;
+			width: 100%;
 		}
 	</style>
 	<script type="module">
@@ -51,34 +55,42 @@
 				return buffer;
 			}
 
+			function convertInt16ToString(array) {
+				return array.join(' ');
+			}
+
+			function convertStringToInt16(string, memory) {
+				const memory2 = new Int16Array(string.split(' '));
+				for (let i = 0; i < 100; i += 1) {
+					memory[i] = memory2[i];
+				}
+			}
+
 			function assemble() {
 				const assembler = document.getElementById('assembler').value;
 				const startAddress = 0;
 				const endAddress = createInt16Array(1000, 1);
 				const memory = createInt16Array(2000, 100);
 				const in_ = createString(3000, assembler);
-				console.log(exports.assemble(startAddress, endAddress.byteOffset, memory.byteOffset, in_.byteOffset, in_.byteLength));
-				console.log(endAddress[0]);
-				document.getElementById('machinecode').value = memory;
+				console.assert(exports.assemble(startAddress, endAddress.byteOffset, memory.byteOffset, in_.byteOffset, in_.byteLength) == 1);
+				//console.log(endAddress[0]);
+				document.getElementById('machinecode').value = convertInt16ToString(memory);
 			}
 
 			function run() {
 				const machinecode = document.getElementById('machinecode').value;
 				const input = document.getElementById('input').value;
 				const memory = createInt16Array(500, 100);
-				memory[1] = 105;
-			    memory[2] = 205;
-    			memory[3] = 606;
-    			memory[4] = 900;
-    			memory[5] = 222;
-    			memory[6] = 0;
+				convertStringToInt16(machinecode, memory);
 				const startAddress = 1;
-				console.log(exports.run(memory.byteOffset, startAddress));
-				document.getElementById('output').value = memory;
+				console.assert(exports.run(memory.byteOffset, startAddress) == 1);
+				document.getElementById('output').value = convertInt16ToString(memory);
 			}
 
 			document.getElementById('assemble').addEventListener('click', assemble);
 			document.getElementById('run').addEventListener('click', run);
+			assemble();
+			run();
 		}
 
 		addEventListener('DOMContentLoaded', loaded);
@@ -86,18 +98,34 @@
 </head>
 
 <body>
+	<h1>Cardiac Playground</h1>
 	<main>
-		<h1>Cardiac Assembler</h1>
-		<h2>Assembler</h2>
-		<textarea id="assembler">HRS</textarea>
-		<button id="assemble">Assemble</button>
-		<h2>Machine Code</h2>
-		<textarea id="machinecode"></textarea>
-		<h2>Input</h2>
-		<textarea id="input"></textarea>
-		<button id="run">Run</button>
-		<h2>Output</h2>
-		<textarea id="output"></textarea>
+		<div>
+			<h2>Assembler</h2>
+			<textarea id="assembler">
+1
+CLA A
+ADD A
+STO B
+HRS
+A: 222
+B: 0
+				</textarea>
+			<button id="assemble">Assemble</button>
+		</div>
+		<div>
+			<h2>Machine Code</h2>
+			<textarea id="machinecode"></textarea>
+			<button id="run">Run</button>
+		</div>
+		<div>
+			<h2>Input</h2>
+			<textarea id="input"></textarea>
+		</div>
+		<div>
+			<h2>Output</h2>
+			<textarea id="output"></textarea>
+		</div>
 	</main>
 </body>
 
