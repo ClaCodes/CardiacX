@@ -3,7 +3,7 @@
 
 <head>
 	<meta charset="utf-8">
-	<title>Cardiac VM</title>
+	<title>Cardiac Playground</title>
 	<link rel="icon" href="data:,">
 	<style>
 		* {
@@ -32,10 +32,10 @@
 		}
 	</style>
 	<script type="module">
-		console.log('Cardiac VM');
+		console.log('Cardiac Playgruond');
 
 		async function loaded() {
-			const response = await fetch('vm.wasm');
+			const response = await fetch('playground.wasm');
 			const buffer = await response.arrayBuffer();
 
 			const assembly = await WebAssembly.instantiate(buffer, { env: {} });
